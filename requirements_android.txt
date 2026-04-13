@@ -1,0 +1,15 @@
+# Android / Termux requirements for pdf_to_audio.py
+# Uses kokoro-onnx instead of kokoro — no PyTorch needed.
+#
+# Install with:
+#   pip install -r requirements_android.txt
+#
+# System packages (Termux):
+#   pkg install ffmpeg libsndfile
+
+kokoro-onnx     # Lightweight ONNX-based Kokoro TTS (no PyTorch)
+soundfile       # WAV read/write (intermediate format)
+pydub           # WAV → MP3 conversion (requires ffmpeg on PATH)
+PyMuPDF         # PDF text extraction (primary)
+pypdf           # PDF text extraction (fallback if PyMuPDF unavailable)
+numpy           # audio array handling

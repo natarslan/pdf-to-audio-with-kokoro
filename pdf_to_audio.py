@@ -11,9 +11,17 @@ Optional exclusions (--exclude):
   footnotes   — skip footnote blocks at the bottom of each page
   references  — drop the References / Bibliography section
 
-Dependencies:
+Dependencies (desktop):
     pip install kokoro soundfile pydub PyMuPDF
     # system: ffmpeg  (required by pydub for MP3 export)
+
+Dependencies (Android/Termux — no PyTorch needed):
+    pip install kokoro-onnx soundfile pydub PyMuPDF
+    # system: pkg install ffmpeg   (in Termux)
+    # model files: run termux_setup.sh or download manually:
+    #   mkdir -p ~/.cache/kokoro-onnx && cd ~/.cache/kokoro-onnx
+    #   wget https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/kokoro-v0_19.onnx
+    #   wget https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices-v1_0.bin
 """
 
 from __future__ import annotations
@@ -284,24 +292,100 @@ def clean_text(text: str) -> str:
 # TTS
 # ---------------------------------------------------------------------------
 
+def _onnx_model_paths() -> tuple:
+    """
+    Search common locations for kokoro-onnx model files and return their paths.
+
+    Search order:
+      1. ~/.cache/kokoro-onnx/   (default cache dir, written by termux_setup.sh)
+      2. directory of this script
+      3. current working directory
+
+    Raises RuntimeError with download instructions if files are not found.
+    """
+    onnx_name   = "kokoro-v0_19.onnx"
+    voices_name = "voices-v1_0.bin"
+    search_dirs = [
+        Path.home() / ".cache" / "kokoro-onnx",
+        Path(__file__).parent,
+        Path.cwd(),
+    ]
+    onnx_path   = None
+    voices_path = None
+    for d in search_dirs:
+        if onnx_path   is None and (d / onnx_name).exists():
+            onnx_path   = d / onnx_name
+        if voices_path is None and (d / voices_name).exists():
+            voices_path = d / voices_name
+        if onnx_path and voices_path:
+            break
+
+    if not onnx_path or not voices_path:
+        cache_dir = Path.home() / ".cache" / "kokoro-onnx"
+        raise RuntimeError(
+            "kokoro-onnx model files not found.\n"
+            "On Android/Termux run:  bash termux_setup.sh\n"
+            "Or download manually:\n"
+            f"  mkdir -p {cache_dir}\n"
+            f"  cd {cache_dir}\n"
+            "  wget https://github.com/thewh1teagle/kokoro-onnx/releases/"
+            "download/model-files/kokoro-v0_19.onnx\n"
+            "  wget https://github.com/thewh1teagle/kokoro-onnx/releases/"
+            "download/model-files/voices-v1_0.bin"
+        )
+    return onnx_path, voices_path
+
+
 def synthesise(text: str, voice: str, speed: float) -> np.ndarray:
     """
-    Synthesise *text* with Kokoro and return a float32 NumPy audio array.
+    Synthesise *text* with Kokoro TTS and return a float32 NumPy audio array.
+
+    Tries ``kokoro`` (PyTorch-based, full desktop install) first; falls back to
+    ``kokoro-onnx`` (ONNX-based, no PyTorch — ideal for Android/Termux) when
+    ``kokoro`` is not installed.
 
     A 0.4 s silence is inserted between chunks for natural pacing.
     """
-    from kokoro import KPipeline
-
-    pipeline = KPipeline(lang_code="a")  # 'a' = American English
-    silence  = np.zeros(int(SAMPLE_RATE * 0.4), dtype=np.float32)
+    silence = np.zeros(int(SAMPLE_RATE * 0.4), dtype=np.float32)
     parts: list[np.ndarray] = []
 
-    for _graphemes, _phonemes, audio in pipeline(
-        text, voice=voice, speed=speed, split_pattern=r"\n\n+"
-    ):
-        if audio is not None and audio.size > 0:
-            parts.append(audio.astype(np.float32))
-            parts.append(silence)
+    try:
+        from kokoro import KPipeline
+
+        pipeline = KPipeline(lang_code="a")  # 'a' = American English
+        for _graphemes, _phonemes, audio in pipeline(
+            text, voice=voice, speed=speed, split_pattern=r"\n\n+"
+        ):
+            if audio is not None and audio.size > 0:
+                parts.append(audio.astype(np.float32))
+                parts.append(silence)
+
+    except ImportError:
+        # ---- kokoro-onnx fallback (Android / Termux / no-PyTorch envs) ----
+        try:
+            from kokoro_onnx import Kokoro as _KokoroOnnx
+        except ImportError:
+            raise RuntimeError(
+                "No Kokoro TTS engine found. Install one of:\n"
+                "  pip install kokoro          # desktop (requires PyTorch)\n"
+                "  pip install kokoro-onnx     # Android/Termux (no PyTorch)\n"
+                "On Android, run termux_setup.sh for a guided install."
+            )
+
+        onnx_path, voices_path = _onnx_model_paths()
+        engine = _KokoroOnnx(str(onnx_path), str(voices_path))
+
+        # Split by paragraphs so each synthesis call stays small on mobile.
+        for para in re.split(r"\n\n+", text):
+            para = para.strip()
+            if not para:
+                continue
+            samples, _sr = engine.create(
+                para, voice=voice, speed=speed, lang="en-us"
+            )
+            if len(samples) > 0:
+                parts.append(samples.astype(np.float32))
+                parts.append(silence)
 
     if not parts:
         raise RuntimeError("Kokoro produced no audio — is the text empty?")

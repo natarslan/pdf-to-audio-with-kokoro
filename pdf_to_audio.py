@@ -27,8 +27,22 @@ import argparse
 import re
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 from typing import Optional, Set
+
+# Suppress warnings that come from inside PyTorch/Kokoro internals and are
+# not actionable from user code — they need to be fixed upstream.
+warnings.filterwarnings(
+    "ignore",
+    message="dropout option adds dropout after all but last recurrent layer",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message="`torch.nn.utils.weight_norm` is deprecated",
+    category=FutureWarning,
+)
 
 import numpy as np
 
@@ -368,7 +382,7 @@ def clean_text(text: str) -> str:
 
 def synthesise(text: str, voice: str, speed: float) -> np.ndarray:
     from kokoro import KPipeline
-    pipeline = KPipeline(lang_code="a")
+    pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     silence  = np.zeros(int(SAMPLE_RATE * 0.4), dtype=np.float32)
     parts: list[np.ndarray] = []
     for _g, _p, audio in pipeline(text, voice=voice, speed=speed, split_pattern=r"\n\n+"):

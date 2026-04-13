@@ -54,3 +54,73 @@ if audio is not None:
 - Once it's a NumPy array, `.size` works correctly as a plain number.
 
 ---
+
+## Fix 2 — Three warnings printed during audio generation
+
+**Date:** 2026-04-14  
+**File:** `pdf_to_audio.py` (imports section + `synthesise` function)
+
+### What the warnings said
+
+```
+WARNING: Defaulting repo_id to hexgrad/Kokoro-82M. Pass repo_id='hexgrad/Kokoro-82M' to suppress this warning.
+
+UserWarning: dropout option adds dropout after all but last recurrent layer,
+so non-zero dropout expects num_layers greater than 1, but got dropout=0.2 and num_layers=1
+
+FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of
+`torch.nn.utils.parametrizations.weight_norm`.
+```
+
+### What each one meant and where it came from
+
+**Warning 1 — `repo_id` not specified**
+
+This came from our code. When initializing the Kokoro pipeline, we wrote:
+
+```python
+pipeline = KPipeline(lang_code="a")
+```
+
+Kokoro needs to know which model to download from Hugging Face (an online model repository). We didn't tell it, so it fell back to a default and printed a reminder to be explicit. Not harmful, but noisy and easy to fix.
+
+**Warning 2 — dropout / num_layers**
+
+This comes from deep inside PyTorch (the machine learning library), triggered when Kokoro loads its neural network model. It's a design choice in Kokoro's model architecture that PyTorch is flagging as unusual. We have no control over this — it would need to be fixed by the Kokoro developers.
+
+**Warning 3 — weight_norm deprecated**
+
+Also comes from inside PyTorch during model loading. It means PyTorch is notifying that an internal function Kokoro uses (`weight_norm`) is old and will eventually be removed. Again, this needs to be fixed by the Kokoro developers, not us.
+
+### The fixes
+
+**Warning 1** — pass the model name explicitly so Kokoro stops guessing:
+
+```python
+# Before:
+pipeline = KPipeline(lang_code="a")
+
+# After:
+pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+```
+
+**Warnings 2 & 3** — suppress them using Python's built-in `warnings` module. This tells Python: "I know about these warnings, they're not from my code, don't show them." Added near the top of the file:
+
+```python
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message="dropout option adds dropout after all but last recurrent layer",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message="`torch.nn.utils.weight_norm` is deprecated",
+    category=FutureWarning,
+)
+```
+
+This is targeted suppression — it only silences these specific messages, not all warnings globally.
+
+---

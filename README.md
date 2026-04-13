@@ -38,6 +38,16 @@ python pdf_to_audio.py book.pdf --full
 
 Output: `book.mp3` saved in the same folder as the PDF.
 
+When finished, the script prints a summary:
+```
+  Converted : book.pdf
+  Words     : 7,768
+  Options   : voice=af_heart, quality=high, speed=1.0x, excluded=none
+  Audio     : 48.3 min
+  Time taken: 22.1 min
+  Saved to  : /path/to/folder
+```
+
 ---
 
 ### 2. Convert with custom speed, quality, or output location

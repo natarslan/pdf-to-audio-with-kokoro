@@ -385,12 +385,19 @@ def synthesise(text: str, voice: str, speed: float) -> np.ndarray:
     pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
     silence  = np.zeros(int(SAMPLE_RATE * 0.4), dtype=np.float32)
     parts: list[np.ndarray] = []
+    chunk_count = 0
+    seconds_done = 0.0
+    print("  Processing chunks: 0 done", end="", flush=True)
     for _g, _p, audio in pipeline(text, voice=voice, speed=speed, split_pattern=r"\n\n+"):
         if audio is not None:
             audio_np = audio.numpy() if hasattr(audio, "numpy") else np.asarray(audio)
             if audio_np.size > 0:
                 parts.append(audio_np.astype(np.float32))
                 parts.append(silence)
+                chunk_count += 1
+                seconds_done += audio_np.size / SAMPLE_RATE
+                print(f"\r  Processing chunks: {chunk_count} done  (~{seconds_done:.0f}s of audio so far)", end="", flush=True)
+    print()  # newline after progress line
     if not parts:
         raise RuntimeError("Kokoro produced no audio — is the text empty?")
     return np.concatenate(parts)

@@ -124,3 +124,50 @@ warnings.filterwarnings(
 This is targeted suppression — it only silences these specific messages, not all warnings globally.
 
 ---
+
+## Fix 3 — Code appears frozen during audio generation
+
+**Date:** 2026-04-14  
+**File:** `pdf_to_audio.py`, `synthesise` function
+
+### What was happening
+
+After printing the model-loading messages, the terminal went silent and nothing appeared to happen. The program looked completely stuck.
+
+It wasn't actually frozen — it was working. Kokoro was processing the text paragraph by paragraph on the CPU, which is slow. A 7,768-word document can take 10–30 minutes to convert. But the code had no progress output inside the processing loop, so there was no way to tell if it was running or hung.
+
+### Why no output?
+
+Python buffers terminal output. Even if you write something with `print()`, it may not appear on screen immediately — Python holds it in a buffer and flushes it in batches. This makes progress messages invisible mid-loop unless you explicitly flush after each one.
+
+### The fix
+
+Add a live progress line inside the `synthesise` loop that updates after each paragraph (chunk) is converted:
+
+```python
+# Before (silent):
+for _g, _p, audio in pipeline(text, ...):
+    if audio is not None:
+        ...
+
+# After (shows progress):
+chunk_count = 0
+seconds_done = 0.0
+print("  Processing chunks: 0 done", end="", flush=True)
+for _g, _p, audio in pipeline(text, ...):
+    if audio is not None:
+        audio_np = ...
+        if audio_np.size > 0:
+            ...
+            chunk_count += 1
+            seconds_done += audio_np.size / SAMPLE_RATE
+            print(f"\r  Processing chunks: {chunk_count} done  (~{seconds_done:.0f}s of audio so far)", end="", flush=True)
+print()
+```
+
+Key details:
+- `end=""` prevents a newline so the line can be overwritten in place.
+- `\r` (carriage return) moves the cursor back to the start of the line, so each update overwrites the previous one instead of flooding the terminal.
+- `flush=True` forces Python to display the output immediately instead of buffering it.
+
+---

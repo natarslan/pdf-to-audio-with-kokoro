@@ -543,13 +543,26 @@ def main() -> None:
             print("Error: no readable text found in the PDF.", file=sys.stderr)
             sys.exit(1)
 
-        print(f"  Words : {len(cleaned_text.split()):,}")
+        import time
+        word_count = len(cleaned_text.split())
+        print(f"  Words : {word_count:,}")
         print(f"  Generating audio...")
+        t_start = time.time()
         audio = synthesise(cleaned_text, voice=args.voice, speed=args.speed)
+        elapsed_min = (time.time() - t_start) / 60
         duration_min = len(audio) / SAMPLE_RATE / 60
-        print(f"  Duration: {duration_min:.1f} min")
         save_mp3(audio, out_path, bitrate)
-        print(f"\nDone.  {out_path}")
+
+        exclusions_str = ", ".join(sorted(exclude)) if exclude else "none"
+        print(
+            f"\n"
+            f"  Converted : {pdf_path.name}\n"
+            f"  Words     : {word_count:,}\n"
+            f"  Options   : voice={args.voice}, quality={args.quality}, speed={args.speed}x, excluded={exclusions_str}\n"
+            f"  Audio     : {duration_min:.1f} min\n"
+            f"  Time taken: {elapsed_min:.1f} min\n"
+            f"  Saved to  : {out_path.parent}\n"
+        )
         return
 
     # ---- Chapter detection ----

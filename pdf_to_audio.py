@@ -428,6 +428,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("pdf", type=Path, help="Input PDF file.")
     parser.add_argument(
+        "--full",
+        action="store_true",
+        help=(
+            "Convert the entire PDF as one MP3 without chapter selection. "
+            "Skips the interactive prompt entirely."
+        ),
+    )
+    parser.add_argument(
         "--combine",
         action="store_true",
         help="Merge all selected chapters into a single MP3 instead of one per chapter.",
@@ -492,6 +500,33 @@ def main() -> None:
         out_arg = args.output.resolve()
     else:
         out_arg = pdf_path.parent   # default: same dir as PDF
+
+    # ---- Full-PDF mode (no chapter selection) ----
+    if args.full:
+        out_path = out_arg if (args.output and not args.output.is_dir()) \
+                   else out_arg / f"{pdf_path.stem}.mp3"
+        if args.output:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+
+        print(f"\nConverting entire PDF: {pdf_path.name}")
+        if exclude:
+            print(f"  Excluding: {', '.join(sorted(exclude))}")
+        print(f"  voice={args.voice}  quality={args.quality} ({bitrate})  speed={args.speed}x\n")
+
+        raw_text     = extract_text(pdf_path, exclude)
+        cleaned_text = clean_text(raw_text)
+        if not cleaned_text:
+            print("Error: no readable text found in the PDF.", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"  Words : {len(cleaned_text.split()):,}")
+        print(f"  Generating audio...")
+        audio = synthesise(cleaned_text, voice=args.voice, speed=args.speed)
+        duration_min = len(audio) / SAMPLE_RATE / 60
+        print(f"  Duration: {duration_min:.1f} min")
+        save_mp3(audio, out_path, bitrate)
+        print(f"\nDone.  {out_path}")
+        return
 
     # ---- Chapter detection ----
     print(f"\nScanning for chapters in: {pdf_path.name}")

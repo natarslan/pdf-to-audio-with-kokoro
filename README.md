@@ -1,14 +1,6 @@
 # pdf-to-audio-with-kokoro
 
-Convert PDF files to MP3 audio using [Kokoro](https://github.com/hexgrad/kokoro), a high-quality open-source TTS engine. Supports interactive chapter selection, automatic table-of-contents detection, and content filtering.
-
-## Features
-
-- **Chapter selection** — auto-detects chapters from the PDF's embedded table of contents; falls back to manual page-range entry if none is found
-- **One MP3 per chapter** by default; `--combine` merges everything into a single file
-- **Content filtering** — optionally skip tables, footnotes, and/or the references section
-- **High-quality voice** — defaults to `af_heart` (Kokoro Grade A, female, American English)
-- **PDF extraction** — uses PyMuPDF for accurate spatial text extraction (pypdf as fallback)
+Convert PDF files to MP3 audio using [Kokoro](https://github.com/hexgrad/kokoro), a high-quality open-source text-to-speech engine.
 
 ## Requirements
 
@@ -17,15 +9,11 @@ Convert PDF files to MP3 audio using [Kokoro](https://github.com/hexgrad/kokoro)
 pip install -r requirements.txt
 ```
 
-**System dependency** — [ffmpeg](https://ffmpeg.org/download.html) must be on your PATH (used for MP3 encoding):
+**ffmpeg** (for MP3 encoding) — must be on your PATH:
 ```bash
-# macOS
-brew install ffmpeg
-
-# Ubuntu / Debian
-sudo apt install ffmpeg
-
-# Windows — download from https://ffmpeg.org/download.html
+brew install ffmpeg          # macOS
+sudo apt install ffmpeg      # Ubuntu / Debian
+# Windows: https://ffmpeg.org/download.html
 ```
 
 ## Installation
@@ -36,21 +24,60 @@ cd pdf-to-audio-with-kokoro
 pip install -r requirements.txt
 ```
 
+---
+
 ## Usage
 
+### 1. Convert an entire PDF to one MP3
+
+The simplest way — no questions asked, no chapter splitting, just the whole PDF as a single file.
+
 ```bash
-python pdf_to_audio.py <path/to/file.pdf> [options]
+python pdf_to_audio.py book.pdf --full
 ```
 
-Running the script is interactive — it will guide you through chapter selection before generating any audio.
+Output: `book.mp3` saved in the same folder as the PDF.
 
-### Basic example
+---
+
+### 2. Convert with custom speed, quality, or output location
+
+```bash
+python pdf_to_audio.py book.pdf --full --quality low --speed 0.9 --output ~/audiobooks/book.mp3
+```
+
+- `--quality low` — smaller file (96 kbps instead of the default 192 kbps)
+- `--speed 0.9` — slightly slower narration (1.0 is normal, 1.2 is faster)
+- `--output` — where to save the file; defaults to the same folder as the PDF
+
+---
+
+### 3. Skip tables, footnotes, and/or the references section
+
+Useful for academic papers where you don't want the script reading out citation lists or table data.
+
+```bash
+# Skip everything at once
+python pdf_to_audio.py paper.pdf --full --exclude all
+
+# Or pick specific ones
+python pdf_to_audio.py paper.pdf --full --exclude footnotes references
+```
+
+Available exclusions: `tables`, `footnotes`, `references`, `all`
+
+---
+
+### 4. Convert chapter by chapter (interactive)
+
+Run without `--full` and the script will automatically look for a table of contents inside the PDF.
 
 ```bash
 python pdf_to_audio.py book.pdf
 ```
 
-**If the PDF has an embedded table of contents:**
+**If the PDF has an embedded table of contents**, the script shows the detected chapters and asks which ones to convert:
+
 ```
 Scanning for chapters in: book.pdf
   Auto-detected 12 chapters from the embedded table of contents.
@@ -64,19 +91,12 @@ Scanning for chapters in: book.pdf
     12.  Conclusion                                       p.180–195
 
   Which chapters? (e.g. 1,3,5-7  or  'all'  — default: all): 1,3
-
-  [1/2] Introduction  (p.1–15)
-        Words : 3,421  |  Duration: 12.3 min
-        Saved : book_01_Introduction.mp3
-
-  [2/2] Methods  (p.36–55)
-        Words : 5,102  |  Duration: 18.7 min
-        Saved : book_03_Methods.mp3
-
-Done.  2 file(s) saved to: /path/to/book/
 ```
 
-**If no table of contents is found**, the script asks for page ranges manually:
+Press **Enter** to select all chapters, or type numbers like `1,3,5-7` to pick specific ones.
+
+**If no table of contents is found**, the script asks you to enter page ranges manually:
+
 ```
   No embedded table of contents found.
   Enter page ranges manually, one per line.
@@ -87,77 +107,56 @@ Done.  2 file(s) saved to: /path/to/book/
   Chapter 3:                      ← blank line to finish
 ```
 
-### Combine chapters into one file
+**Output — by default, one MP3 per chapter:**
+```
+book_01_Introduction.mp3
+book_03_Methods.mp3
+```
+
+---
+
+### 5. Convert selected chapters into one combined MP3
+
+Add `--combine` to merge everything into a single file instead of separate chapter files.
 
 ```bash
 python pdf_to_audio.py book.pdf --combine
-# → book_combined.mp3
 ```
 
-### Skip tables, footnotes, and references
+Output: `book_combined.mp3`
 
-```bash
-# All at once
-python pdf_to_audio.py paper.pdf --exclude all
+---
 
-# Or pick specific ones
-python pdf_to_audio.py paper.pdf --exclude footnotes references
-```
-
-### Lower quality for smaller file size
-
-```bash
-python pdf_to_audio.py book.pdf --quality low
-```
-
-### Custom output location
-
-```bash
-# Multi-chapter: treated as an output directory
-python pdf_to_audio.py book.pdf --output ~/audiobooks/
-
-# Combined: treated as the output file
-python pdf_to_audio.py book.pdf --combine --output ~/audiobooks/book.mp3
-```
-
-## Options
+## All options
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--combine` | off | Merge all selected chapters into one MP3 |
+| `--full` | off | Convert the entire PDF as one MP3, skipping chapter selection |
+| `--combine` | off | Merge all selected chapters into one MP3 (chapter mode only) |
 | `--exclude` | none | Skip content: `tables` `footnotes` `references` `all` |
-| `--quality` | `high` | MP3 bitrate: `high` = 192 kbps, `low` = 96 kbps |
-| `--speed` | `1.0` | Speech speed multiplier (e.g. `0.9` = slightly slower) |
-| `--voice` | `af_heart` | Kokoro voice ID |
-| `--output` | PDF's directory | Output directory (multi-chapter) or file path (`--combine`) |
+| `--quality` | `high` | `high` = 192 kbps  \|  `low` = 96 kbps |
+| `--speed` | `1.0` | Speech speed — `0.9` slower, `1.2` faster |
+| `--voice` | `af_heart` | Kokoro voice ID (see below) |
+| `--output` | PDF's folder | Output file (single MP3) or folder (chapter mode) |
 
-## Output file naming
-
-| Mode | Filename |
-|------|----------|
-| One file per chapter | `<pdf_stem>_01_<Title>.mp3`, `<pdf_stem>_02_<Title>.mp3`, … |
-| Combined | `<pdf_stem>_combined.mp3` |
-
-## How content filtering works
-
-| Filter | Method |
-|--------|--------|
-| `tables` | PyMuPDF detects table bounding boxes and skips overlapping text blocks; tab/pipe heuristics when using pypdf |
-| `footnotes` | Skips text blocks in the bottom 15 % of each page that match numbered/symbol footnote patterns |
-| `references` | Finds the last "References" / "Bibliography" heading and truncates the document there |
+---
 
 ## Voices
 
-The default voice is `af_heart` — Kokoro's highest-rated female American English voice (Grade A). Other available female voices include `af_bella` (Grade A−), `af_nicole`, `af_sarah`, and `af_sky`. Pass any voice ID with `--voice`.
+The default voice is **`af_heart`** — Kokoro's highest-rated female American English voice.
+Other options: `af_bella`, `af_nicole`, `af_sarah`, `af_sky`.
 
-## Dependencies
+To use a different voice:
+```bash
+python pdf_to_audio.py book.pdf --full --voice af_bella
+```
 
-| Package | Purpose |
-|---------|---------|
-| `kokoro` | TTS engine |
-| `PyMuPDF` | PDF text extraction and table/footnote detection |
-| `pypdf` | Fallback PDF extraction |
-| `soundfile` | WAV intermediate file |
-| `pydub` | WAV → MP3 conversion |
-| `numpy` | Audio array handling |
-| `ffmpeg` *(system)* | MP3 encoding (required by pydub) |
+---
+
+## How content filtering works
+
+| Filter | What it removes |
+|--------|----------------|
+| `tables` | Detects table regions spatially (PyMuPDF) and skips their text |
+| `footnotes` | Skips numbered/symbol text blocks at the bottom of each page |
+| `references` | Finds the last "References" or "Bibliography" heading and cuts from there |

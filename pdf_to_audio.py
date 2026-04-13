@@ -313,7 +313,7 @@ QUALITY_BITRATES: dict[str, str] = {
     "low":  "96k",
 }
 
-VALID_EXCLUSIONS = {"tables", "footnotes", "references"}
+VALID_EXCLUSIONS = {"tables", "footnotes", "references", "parentheses"}
 
 _REFS_HEADING_RE = re.compile(
     r"^\s*(References?|Bibliography|Works\s+Cited|Literature\s+Cited"
@@ -344,6 +344,16 @@ def strip_footnotes_text(text: str) -> str:
     return _FOOTNOTE_LINE_RE.sub("", text)
 
 
+def strip_parentheses(text: str) -> str:
+    """Remove all parenthetical content, including nested parentheses."""
+    pattern = re.compile(r'\([^()]*\)')
+    prev = None
+    while prev != text:
+        prev = text
+        text = pattern.sub("", text)
+    return re.sub(r"[ \t]{2,}", " ", text)  # clean up leftover double spaces
+
+
 def extract_text(
     pdf_path: Path,
     exclude: Set[str],
@@ -361,6 +371,8 @@ def extract_text(
         text = strip_references(text)
     if "footnotes" in exclude and not _PYMUPDF:
         text = strip_footnotes_text(text)
+    if "parentheses" in exclude:
+        text = strip_parentheses(text)
 
     return text
 
@@ -470,7 +482,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=sorted(VALID_EXCLUSIONS) + ["all"],
         default=[],
         metavar="SECTION",
-        help="Exclude: tables  footnotes  references  all",
+        help="Exclude: tables  footnotes  references  parentheses  all",
     )
     parser.add_argument(
         "--quality",

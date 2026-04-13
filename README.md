@@ -74,7 +74,7 @@ python pdf_to_audio.py paper.pdf --full --exclude all
 python pdf_to_audio.py paper.pdf --full --exclude footnotes references
 ```
 
-Available exclusions: `tables`, `footnotes`, `references`, `all`
+Available exclusions: `tables`, `footnotes`, `references`, `parentheses`, `all`
 
 ---
 
@@ -143,7 +143,7 @@ Output: `book_combined.mp3`
 |--------|---------|-------------|
 | `--full` | off | Convert the entire PDF as one MP3, skipping chapter selection |
 | `--combine` | off | Merge all selected chapters into one MP3 (chapter mode only) |
-| `--exclude` | none | Skip content: `tables` `footnotes` `references` `all` |
+| `--exclude` | none | Skip content: `tables` `footnotes` `references` `parentheses` `all` |
 | `--quality` | `high` | `high` = 192 kbps  \|  `low` = 96 kbps |
 | `--speed` | `1.0` | Speech speed — `0.9` slower, `1.2` faster |
 | `--voice` | `af_heart` | Kokoro voice ID (see below) |
@@ -170,3 +170,4 @@ python pdf_to_audio.py book.pdf --full --voice af_bella
 | `tables` | Detects table regions spatially (PyMuPDF) and skips their text |
 | `footnotes` | Skips numbered/symbol text blocks at the bottom of each page |
 | `references` | Finds the last "References" or "Bibliography" heading and cuts from there |
+| `parentheses` | Removes all text inside `(...)`, including nested parentheses — useful for stripping inline citations like `(Smith et al., 2020)` |

@@ -51,12 +51,14 @@ python pdf_to_audio.py paper.pdf --full --exclude all
 - `footnotes` — skips numbered footnote blocks at the bottom of pages (e.g. `¹ See also Smith et al.`)
 - `references` — drops everything from the "References" or "Bibliography" heading to the end
 - `tables` — skips table regions detected on each page
+- `parentheses` — removes all text inside `(...)`, including nested ones — good for stripping inline citations like `(Smith et al., 2020)` or `(see Figure 3)`
 
 You can also exclude specific parts instead of everything:
 
 ```bash
 python pdf_to_audio.py paper.pdf --full --exclude footnotes references
 python pdf_to_audio.py paper.pdf --full --exclude tables
+python pdf_to_audio.py paper.pdf --full --exclude parentheses
 ```
 
 ---

@@ -1,0 +1,7 @@
+# pdf_to_audio.py dependencies
+kokoro          # Kokoro TTS engine
+soundfile       # WAV read/write (intermediate format)
+pydub           # WAV → MP3 conversion (requires ffmpeg on PATH)
+PyMuPDF         # PDF text extraction (primary)
+pypdf           # PDF text extraction (fallback if PyMuPDF unavailable)
+numpy           # audio array handling (pulled in by kokoro, listed explicitly)

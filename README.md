@@ -170,4 +170,4 @@ python pdf_to_audio.py book.pdf --full --voice af_bella
 | `tables` | Detects table regions spatially (PyMuPDF) and skips their text |
 | `footnotes` | Skips numbered/symbol text blocks at the bottom of each page |
 | `references` | Finds the last "References" or "Bibliography" heading and cuts from there |
-| `parentheses` | Removes all text inside `(...)`, including nested parentheses — useful for stripping inline citations like `(Smith et al., 2020)` |
+| `parentheses` | Removes parenthetical content that contains a number or `n.d` — targets inline citations like `(Smith et al., 2020)` or `(n.d.)` while keeping plain prose like `(see discussion above)` |

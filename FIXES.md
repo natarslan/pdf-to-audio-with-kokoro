@@ -171,3 +171,57 @@ Key details:
 - `flush=True` forces Python to display the output immediately instead of buffering it.
 
 ---
+
+## Change 4 — `--exclude parentheses` uses smart citation detection
+
+**Date:** 2026-04-14  
+**File:** `pdf_to_audio.py`, `strip_parentheses` function
+
+### What was added first
+
+An option `--exclude parentheses` was added to remove all text inside `(...)`. This was useful for academic papers where inline citations clutter the audio.
+
+### The problem with removing everything
+
+Blindly removing all parenthetical content is too aggressive. Not everything in parentheses is a citation. Examples that should be kept:
+
+- `(see discussion above)` — a useful cross-reference
+- `(emphasis added)` — editorial note
+- `(also known as X)` — a definition
+
+### The smarter approach
+
+A parenthetical is only removed if its content contains **a digit** or the string **`n.d`**. This targets:
+
+- Year-based citations: `(Smith et al., 2020)` → removed (contains `2020`)
+- Page references: `(p. 45)` → removed (contains `45`)
+- No-date APA citations: `(n.d.)` → removed (contains `n.d`)
+- Numbered references: `(3)` → removed (contains `3`)
+
+But keeps:
+
+- `(see discussion above)` → kept (no digit, no `n.d`)
+- `(emphasis added)` → kept
+- `(also known as climate services)` → kept
+
+### The fix
+
+```python
+# Before — removed everything:
+pattern = re.compile(r'\([^()]*\)')
+text = pattern.sub("", text)
+
+# After — removes only citation-like content:
+_citation_re = re.compile(r"\d|n\.d", re.IGNORECASE)
+
+def _maybe_remove(m):
+    content = m.group(1)
+    return "" if _citation_re.search(content) else m.group(0)
+
+pattern = re.compile(r"\(([^()]*)\)")
+text = pattern.sub(_maybe_remove, text)
+```
+
+The function `_maybe_remove` is called for every match. It inspects the text inside the parentheses and decides: remove it (return `""`) or leave it untouched (return the original match).
+
+---

@@ -345,12 +345,25 @@ def strip_footnotes_text(text: str) -> str:
 
 
 def strip_parentheses(text: str) -> str:
-    """Remove all parenthetical content, including nested parentheses."""
-    pattern = re.compile(r'\([^()]*\)')
+    """Remove parenthetical content that looks like a citation.
+
+    A parenthetical is removed only if its content contains:
+      - any digit (e.g. a year, page number, or numbered reference), or
+      - the string 'n.d' (APA notation for 'no date').
+    Parentheticals with plain prose (e.g. 'see discussion above') are kept.
+    Nested parentheses are handled by repeating until nothing changes.
+    """
+    _citation_re = re.compile(r"\d|n\.d", re.IGNORECASE)
+
+    def _maybe_remove(m: re.Match) -> str:
+        content = m.group(1)
+        return "" if _citation_re.search(content) else m.group(0)
+
+    pattern = re.compile(r"\(([^()]*)\)")
     prev = None
     while prev != text:
         prev = text
-        text = pattern.sub("", text)
+        text = pattern.sub(_maybe_remove, text)
     return re.sub(r"[ \t]{2,}", " ", text)  # clean up leftover double spaces
 
 
